@@ -1,0 +1,292 @@
+% !TEX root = main.tex
+\section{理論}
+\subsection{ROS 2とは}
+ロボット技術は産業用から日常生活まで多岐にわたる応用が進んでおり，
+それに伴い，開発の効率化やシステムの拡張性が求められている．
+これらの課題に対応するため，オープンソースのロボットフレームワークである
+ROS（Robot Operating System）が開発され，幅広い支持を得ている．
+ROSは，通信，制御，センサーデータの統合など，ロボット開発における基盤となる機能を提供しており，
+研究開発において重要な役割を果たしている．
+
+ROS 2はDDS（Data Distribution Service）を通信基盤として採用している．
+これにより，ノード間通信のリアルタイム性が向上し，
+複数のロボットやセンサーから成る分散システムの構築が容易となった\cite{ros2design}．
+特に，産業用ロボットや自動運転車のように，即時性が求められるシステムにおいて，その利点が顕著である．
+
+さらに，クロスプラットフォーム対応もROS 2の特徴の一つである．
+ROS 1は主にLinux環境での動作を前提としていたが，
+ROS 2ではWindowsやmacOSなど複数のプラットフォームで動作するよう設計されており，
+開発環境の柔軟性が大幅に向上した\cite{ros2docs}．
+これにより，多様なハードウェア環境への適応が可能となり，利用者の裾野が広がった．
+
+これらの特徴により，ROS 2は，
+研究開発だけでなく商業用途にも適したフレームワークとして注目を集めている．
+本研究においても，ROS 2を採用することで，効率的かつ信頼性の高いロボットシステムの開発を目指す．
+
+\subsection{2輪ロボットの運動学}
+2輪ロボットは，シンプルな構造でありながら，高い機動性を持つため，広く研究や産業に利用されている．
+その運動学は，ロボットの速度制御や経路計画を行う上で不可欠な要素である．
+本節では，2輪ロボットの運動学および逆運動学を導出する．
+
+\begin{itemize}
+    \item $v$：ロボットの並進速度 [m/s]
+    \item $\omega$：ロボットの角速度 [rad/s]
+    \item $r$：車輪の半径 [m]
+    \item $L$：左右車輪間の距離 [m]
+    \item $\dot{\theta}_R$，$\dot{\theta}_L$：右車輪および左車輪の角速度 [rad/s]
+\end{itemize}
+とする．
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figure/robot_model.pdf}
+    \caption{2輪ロボットのモデル図}
+    \label{fig:robot_model}
+\end{figure}
+
+\subsubsection{順運動学}
+順運動学では，各車輪の角速度$\dot{\theta}_R$および$\dot{\theta}_L$から，ロボットの並進速度$v$，角速度$\omega$，および自己位置を算出する．自己位置の計算は，ロボットの進行方向と回転を考慮して行う．
+
+ロボットの並進速度$v$と角速度$\omega$は，次式で表される．
+\begin{equation}
+    v = \frac{r}{2} (\dot{\theta}_R + \dot{\theta}_L)
+    \label{eq:forward_v}
+\end{equation}
+\begin{equation}
+    \omega = \frac{r}{L} (\dot{\theta}_R - \dot{\theta}_L)
+    \label{eq:forward_omega}
+\end{equation}
+
+これに基づき，ロボットの自己位置$(x, y)$と向き$\theta$の時間変化を次のように表す．
+\begin{equation}
+    \dot{x} = v \cos \theta
+    \label{eq:forward_x}
+\end{equation}
+\begin{equation}
+    \dot{y} = v \sin \theta
+    \label{eq:forward_y}
+\end{equation}
+\begin{equation}
+    \dot{\theta} = \omega
+    \label{eq:forward_theta}
+\end{equation}
+
+これらの微分方程式を離散化することで，時刻$t_k$における位置と向きを計算することができる．離散化した式は次のようになる．
+\begin{equation}
+    x_{k+1} = x_k + v_k \cos \theta_k \Delta t
+    \label{eq:discrete_x}
+\end{equation}
+\begin{equation}
+    y_{k+1} = y_k + v_k \sin \theta_k \Delta t
+    \label{eq:discrete_y}
+\end{equation}
+\begin{equation}
+    \theta_{k+1} = \theta_k + \omega_k \Delta t
+    \label{eq:discrete_theta}
+\end{equation}
+ここで，$\Delta t$は計算ステップの時間間隔を示す．
+
+順運動学を用いることで，各車輪の角速度を基にロボットの現在位置と進行方向をリアルタイムで更新することが可能である．
+
+\subsubsection{逆運動学}
+逆運動学では，ロボットの並進速度$v$と角速度$\omega$から，
+車輪の角速度$\dot{\theta}_R$および$\dot{\theta}_L$を求める．
+ロボットの基本的なモデルを図\ref{fig:robot_model}に示す．
+
+ロボットの並進速度$v$および角速度$\omega$は，
+車輪の角速度$\dot{\theta}_R$および$\dot{\theta}_L$により次式で表される．
+\begin{equation}
+    v = \frac{r}{2} (\dot{\theta}_R + \dot{\theta}_L)
+    \label{eq:v}
+\end{equation}
+\begin{equation}
+    \omega = \frac{r}{L} (\dot{\theta}_R - \dot{\theta}_L)
+    \label{eq:omega}
+\end{equation}
+
+式\eqref{eq:v}および式\eqref{eq:omega}を連立すると，次のように導出できる．
+\begin{equation}
+    \dot{\theta}_R = \frac{1}{r} (v + \frac{L}{2} \omega)
+    \label{eq:theta_R}
+\end{equation}
+\begin{equation}
+    \dot{\theta}_L = \frac{1}{r} (v - \frac{L}{2} \omega)
+    \label{eq:theta_L}
+\end{equation}
+
+これらの式により，目標速度$v$と$\omega$が与えられた場合に，
+車輪の角速度$\dot{\theta}_R$と$\dot{\theta}_L$を算出し，
+モータードライバを介して制御することでロボットの移動を実現できる．
+
+\subsection{PID制御とローパスフィルタ}
+PID制御（Proportional-Integral-Derivative Control）は，
+制御工学における最も基本的かつ広く使用されているフィードバック制御の手法である．
+本節では，PID制御の基本構造とローパスフィルタについて説明する．
+
+\subsubsection{PID制御の構造}
+PID制御は，目標値と現在値の偏差（エラー）を基に制御量を算出し，システムを目標値へ収束させる手法である．
+制御量$u(t)$は次式で定義される：
+\begin{equation}
+    u(t) = K_P e(t) + K_I \int_{0}^{t} e(\tau) d\tau + K_D \frac{de(t)}{dt}
+    \label{eq:pid}
+\end{equation}
+ここで，
+\begin{itemize}
+    \item $e(t)$：目標値と現在値の偏差
+    \item $K_P$：比例ゲイン（P制御）
+    \item $K_I$：積分ゲイン（I制御）
+    \item $K_D$：微分ゲイン（D制御）
+\end{itemize}
+各項の役割は以下の通りである：
+\begin{itemize}
+    \item 比例制御（P制御）：偏差に比例した制御量を生成し，応答の速さを向上させる．
+    \item 積分制御（I制御）：偏差を累積することで，定常偏差を排除する．
+    \item 微分制御（D制御）：偏差の変化率を基に，過渡応答の振動を抑制する．
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figure/pid.pdf}
+    \caption{PID制御器の構成図}
+    \label{fig:pid_controller}
+\end{figure}
+
+図\ref{fig:pid_controller}にPID制御器の構成図を示す．
+本研究では，このPID制御器を用いてロボットの速度を制御し，目標値への迅速かつ正確な追従を実現する．
+
+\subsubsection{ローパスフィルタの導入}
+微分制御（D制御）は高周波ノイズに敏感であり，そのまま使用するとシステムの安定性を損なう可能性がある．
+この問題を軽減するために，微分項にローパスフィルタを適用することが一般的である．
+
+ローパスフィルタを適用した微分制御項は次式で表される：
+\begin{equation}
+    D(s) = \frac{K_D s}{1 + T s}
+    \label{eq:lowpass_filter}
+\end{equation}
+ここで，
+\begin{itemize}
+    \item $T$：ローパスフィルタの時定数
+\end{itemize}
+
+フィルタを導入することで，高周波ノイズが減衰され，システムの安定性が向上する．
+
+\subsection{デプスカメラと距離測定の方法}
+デプスカメラは，対象物までの距離を計測するためのデバイスであり，ロボットの環境認識や障害物回避，
+物体追跡などの応用において重要な役割を果たす．
+本研究では，インテル® RealSense™ デプスカメラ D435iを使用し，
+カメラから取得したデプスデータを基に人追従アルゴリズムを実現する．
+本節では，デプスカメラの仕組みおよびD435iの特徴について説明する．
+
+\subsubsection{デプスカメラの仕組み}
+デプスカメラは，主に以下の3つの方式で距離を測定する：
+\begin{itemize}
+    \item ステレオカメラ方式：2つのカメラで撮影した画像から視差（パララックス）を計算し，
+          物体までの距離を推定する．
+    \item アクティブ赤外線方式：赤外線を投射し，反射光のパターンを解析することで深度情報を取得する．
+    \item Time-of-Flight（ToF）方式：光の飛行時間を測定し，物体までの距離を直接計算する．
+\end{itemize}
+
+RealSense D435iは，ステレオカメラ方式を基本とし，アクティブ赤外線方式を補助的に使用する．
+これにより，低照度環境やテクスチャの少ない物体に対しても安定した距離測定が可能となっている．
+
+\subsection{デプスデータからの人座標検出}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.4\textwidth]{figure/rialsens_man.pdf}
+    \caption{デプスカメラを用いた座標変換モデル}
+    \label{fig:coordinate_conversion}
+\end{figure}
+
+デプスカメラで取得したデータを用いて，画像上のピクセル座標を実空間の物理座標に変換することで，
+人の位置を検出する．図\ref{fig:coordinate_conversion}に示すように，ピクセル座標系における対象物の位置を，
+カメラ座標系に変換する手順を以下に述べる．
+
+\subsubsection{ピクセル座標からカメラ座標への変換}
+デプスカメラのデプスマップは，画像として各ピクセルの深度情報（距離）を格納している．このデータを利用して，ピクセル座標$(u, v)$をカメラ座標$(X_c, Y_c, Z_c)$に変換する．変換には以下の式を使用する：
+\begin{equation}
+    X_c = \frac{(u - c_x) \cdot Z_c}{f_x}
+    \label{eq:xc}
+\end{equation}
+\begin{equation}
+    Y_c = \frac{(v - c_y) \cdot Z_c}{f_y}
+    \label{eq:yc}
+\end{equation}
+\begin{equation}
+    Z_c = D(u, v)
+    \label{eq:zc}
+\end{equation}
+ここで，
+\begin{itemize}
+    \item $u, v$：ピクセル座標系の位置 [pixel]
+    \item $c_x, c_y$：カメラの光学中心 [pixel]
+    \item $f_x, f_y$：カメラの焦点距離 [pixel]
+    \item $D(u, v)$：デプスマップから取得される深度値 [m]
+\end{itemize}
+
+この変換により，画像上の対象物がカメラ座標系における3次元位置として表現される．
+
+\subsubsection{カメラ座標からロボット座標への変換}
+次に，カメラ座標$(X_c, Y_c, Z_c)$をロボット座標$(X_r, Y_r, Z_r)$に変換する．カメラとロボットの座標系の関係は，以下のように平行移動と回転を適用して記述される：
+\begin{equation}
+    \begin{bmatrix}
+        X_r \\ Y_r \\ Z_r \\ 1
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        R & T \\
+        0 & 1
+    \end{bmatrix}
+    \begin{bmatrix}
+        X_c \\ Y_c \\ Z_c \\ 1
+    \end{bmatrix}
+\end{equation}
+ここで，
+\begin{itemize}
+    \item $R$：カメラ座標系からロボット座標系への回転行列
+    \item $T$：カメラ座標系からロボット座標系への平行移動ベクトル
+\end{itemize}
+
+これにより，ロボット座標系において対象物の位置が求められる．
+
+本研究では，D435iのデプスマップを利用して人の位置を検出し，ロボットの進行方向を計算する．
+図\ref{fig:coordinate_conversion}に示すように，人の座標$(X_r, Y_r)$を基に追従アルゴリズムを適用し，
+目標の移動方向を決定する．
+
+
+\subsection{YOLOv5による物体認識}
+本研究では，人の認識にYOLOv5（You Only Look Once Version 5）を使用する．
+YOLOはリアルタイムで物体を検出するアルゴリズムであり，
+1枚の画像に対して物体のクラスとその位置を同時に出力する特徴を持つ．
+
+\subsubsection{YOLOv5の基本的なアーキテクチャ}
+YOLOv5は，単一のニューラルネットワークを用いて，画像内の物体のバウンディングボックスとクラスラベルを直接予測する．\cite{yolo}：
+
+YOLOv5は，他の物体検出モデル（例えばSSDやFaster R-CNN）と比較して，
+高速な推論速度と高い精度を両立している．このため，リアルタイム性が要求されるロボットシステムにおいて有用である．
+
+\subsubsection{人認識への応用}
+本研究では，YOLOv5を用いてデプスカメラD435iから得られたRGB画像内の人を認識する．
+YOLOv5は以下のステップで物体を検出する：
+\begin{enumerate}
+    \item RGB画像を入力し，YOLOv5のバックボーンにより特徴を抽出する．
+    \item ネックでスケールを調整し，特徴を統合する．
+    \item ヘッドでバウンディングボックス，クラスラベル（人），および信頼度スコアを出力する．
+\end{enumerate}
+
+出力されたバウンディングボックスは，ピクセル座標で記述されており，
+これをデプスカメラのデプスマップと組み合わせることで，物理座標を算出する．
+例えば，検出された人物のバウンディングボックス中心の座標$(u, v)$に対応するデプス値$Z$を用いて，
+以下の式によりカメラ座標$(X_c, Y_c, Z_c)$を求める：
+\begin{equation}
+    X_c = \frac{(u - c_x) \cdot Z}{f_x}, \quad
+    Y_c = \frac{(v - c_y) \cdot Z}{f_y}, \quad
+    Z_c = Z
+\end{equation}
+
+この手法により，検出された人物の位置を3次元空間で特定することができる．
+
+YOLOv5の使用は，リアルタイム性と検出精度のバランスを保つ上で重要である．
+YOLOv5は軽量であるため，組み込みシステムや移動ロボットのような計算リソースが制限された環境でも動作可能である．
+
+本研究では，YOLOv5を用いてリアルタイムで人を認識し，その位置情報をカメラ座標系で取得する．
