@@ -1,25 +1,9 @@
-/*
- * C言語のサンプルプログラム - Webkaru
- * - 入力した整数が正か負かを判定 -
- */
 #include <stdio.h>
- 
-int main(void)
+
+int main()
 {
-	/* 変数の宣言 */
-	int number;
- 
-	/* 整数の入力 */
-	printf("整数を入力 = ");
-	scanf("%d", &number);
- 
-	/* 入力した整数が正か負かを判定 */
-	if (number > 0)
-		printf("%d は正です。\n", number);
-	else if (number == 0)
-		printf("%d は正・負のどちらでもありません。\n", number);
-	else
-		printf("%d は負です。\n", number);
- 
-	return 0;
+    int a = 10;                    // aに10を代入
+    int b = 20;                    // bに20を代入
+    printf("a + b = %d\n", a + b); // a + bの結果を出力
+    return 0;                      // プログラム正常終了
 }

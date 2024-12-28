@@ -1,6 +1,7 @@
 \documentclass[11pt]{ujarticle}
 %\documentclass{jlreq,11pt}
 %%%%%%% スタイルファイル %%%%%%%%%%%%%%%%%%%%%%
+\usepackage{lmodern}
 \usepackage{amsmath,amssymb}
 
 \usepackage{thesis}
@@ -8,9 +9,11 @@
 \usepackage[dvipdfmx]{graphicx}   % pdf 形式の図版取り込みのため
 \usepackage{ascmac}
 \usepackage{multicol}
-
+\usepackage{array}
 \usepackage{float}
 \usepackage{indent}
+\setlength{\parindent}{1em} % 段落の字下げを2文字分にする
+
 \usepackage{url}
 
 \usepackage{color}
@@ -25,8 +28,32 @@
  {\endMakeFramed}
 \makeatother
 
-\usepackage{listings,jlisting}
-\usepackage{mylistings}
+
+\usepackage{listings,jvlisting} 
+\usepackage{xcolor} % 必要なら色をつけるため
+\usepackage{caption}
+%\captionsetup[lstlisting]{labelfont=bf, font=footnotesize, format=plain, singlelinecheck=false}
+
+\lstset{
+    basicstyle=\ttfamily\scriptsize,      % フォントサイズとスタイル
+    keywordstyle=\color{blue},            % キーワードの色
+    commentstyle=\color{green},           % コメントの色
+    stringstyle=\color{red},              % 文字列の色
+    numbers=left,                         % 行番号を左側に表示
+    stepnumber=1,                         % 行番号の間隔
+    numbersep=10pt,                       % 行番号とコードの間隔
+    frame=tb,                             % 上下に枠を表示
+    captionpos=b,                         % キャプションの位置を下
+    breaklines=true,                      % 長い行を折り返す
+    breakatwhitespace=false,              % 空白で改行しない
+    showspaces=false,                     % スペースを表示しない
+    showstringspaces=false,               % 文字列中のスペースを表示しない
+    tabsize=4,                            % タブ幅
+    extendedchars=true,                   % 拡張文字セットを有効化（日本語対応）
+    inputencoding=utf8,                   % 入力文字エンコーディングをUTF-8に設定
+    backgroundcolor={\color[gray]{.95}},  %背景の色設定    
+}
+
 
 
 \begin{document}
@@ -36,7 +63,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % === 年度を記入 ============================================================
-\def\year{1}	% 令和 1 年度の場合
+\def\year{5}	% 令和 1 年度の場合
 
 % === 提出年月日を記入 ============================================================
 \def\submityear{2}	% 令和 2 年

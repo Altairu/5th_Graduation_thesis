@@ -125,7 +125,7 @@ PID制御（Proportional-Integral-Derivative Control）は，
 本節では，PID制御の基本構造とローパスフィルタについて説明する．
 
 \subsubsection{PID制御の構造}
-PID制御は，目標値と現在値の偏差（エラー）を基に制御量を算出し，システムを目標値へ収束させる手法である．
+PID制御は，目標値と現在値の偏差を基に制御量を算出し，システムを目標値へ収束させる手法である．
 制御量$u(t)$は次式で定義される：
 \begin{equation}
     u(t) = K_P e(t) + K_I \int_{0}^{t} e(\tau) d\tau + K_D \frac{de(t)}{dt}
@@ -153,7 +153,7 @@ PID制御は，目標値と現在値の偏差（エラー）を基に制御量�
 \end{figure}
 
 図\ref{fig:pid_controller}にPID制御器の構成図を示す．
-本研究では，このPID制御器を用いてロボットの速度を制御し，目標値への迅速かつ正確な追従を実現する．
+本研究では，このPID制御器を用いてロボットの各車輪の速度を制御している．
 
 \subsubsection{ローパスフィルタの導入}
 微分制御（D制御）は高周波ノイズに敏感であり，そのまま使用するとシステムの安定性を損なう可能性がある．
@@ -190,15 +190,6 @@ YOLOv5は以下のステップで物体を検出する：
 
 出力されたバウンディングボックスは，ピクセル座標で記述されており，
 これをデプスカメラのデプスマップと組み合わせることで，物理座標を算出する．
-例えば，検出された人物のバウンディングボックス中心の座標$(u, v)$に対応するデプス値$Z$を用いて，
-以下の式によりカメラ座標$(X_c, Y_c, Z_c)$を求める：
-\begin{equation}
-    X_c = \frac{(u - c_x) \cdot Z}{f_x}, \quad
-    Y_c = \frac{(v - c_y) \cdot Z}{f_y}, \quad
-    Z_c = Z
-\end{equation}
-
-この手法により，検出された人物の位置を3次元空間で特定することができる．
 
 
 \subsection{デプスカメラと距離測定の方法}
@@ -283,3 +274,72 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
 本研究では，D435iのデプスマップを利用して人の位置を検出し，ロボットの進行方向を計算する．
 図\ref{fig:coordinate_conversion}に示すように，人の座標$(X_r, Y_r)$を基に追従アルゴリズムを適用し，
 目標の移動方向を決定する．
+
+\subsection{人追従アルゴリズム}
+
+\subsubsection{比例航法 (Proportional Navigation, PN)}
+比例航法は，目標物（人物）の追従において，距離と偏差（横方向のズレ）を用いて
+制御信号を生成する基本的なアルゴリズムである．以下に，本実験で使用する比例航法の式を示す．
+
+\begin{align}
+    V      & = k_v \cdot (\text{person\_distance} - 1.0)                                       \\
+    \omega & = k_\omega \cdot \frac{\text{person\_offset}}{\max(\text{person\_distance}, 1.0)}
+\end{align}
+\begin{itemize}
+    \item \(k_v\)：並進速度の比例ゲイン
+    \item \(k_\omega\)：角速度の比例ゲイン
+    \item \(\text{person\_distance}\)：ロボットと目標間の距離
+    \item \(\text{person\_offset}\)：横方向の偏差
+\end{itemize}
+
+\subsubsection{修正比例航法 (Modified Proportional Navigation, MPN)}
+比例方法では，大きな変化に対して大きな出力となり，ロボットの動きが激しくなってしまう．
+そこで修正比例航法では，偏差の変化率（偏差角速度）を考慮することで，
+ロボットの動作をより滑らかにする．
+偏差角速度は以下の式で計算される．
+\begin{equation}
+    \dot{\text{offset}} = \frac{\text{person\_offset} - \text{previous\_offset}}{\Delta t}
+\end{equation}
+
+角速度 \(\omega\) は以下の式で修正される．
+\begin{equation}
+    \omega = k_\omega \cdot \frac{\text{person\_offset}}{\max(\text{person\_distance}, 1.0)} + \lambda \cdot \dot{\text{offset}}
+\end{equation}
+ここで，
+\begin{itemize}
+    \item \(\lambda\)：偏差角速度に対するゲイン
+    \item \(\Delta t\)：制御周期
+    \item \(\text{previous\_offset}\)：前回の偏差値
+\end{itemize}
+
+これにより，急激な方向転換や不安定な動作が軽減され，滑らかな動作が可能となる．
+しかしながら，追従性能がやや劣る．
+
+\subsubsection{ゲインスケジューリング修正比例航法
+    (Gain-Scheduled Modified Proportional Navigation, GS-MPN)}
+ゲインスケジューリング修正比例航法では，偏差角速度に基づき動的なゲインスケジューリングを導入することで，
+柔軟な制御を実現する．
+
+動的微分ゲイン \(k_d\) は以下の式で定義される．
+\begin{equation}
+    k_d = \lambda_d \cdot \frac{1 - \exp(-a \cdot |\dot{\text{offset}}|)}{1 + \exp(-a \cdot |\dot{\text{offset}}|)}
+\end{equation}
+\begin{itemize}
+    \item \(\lambda_d\)：微分ゲインの最大値
+    \item \(a\)：微分ゲインの変化速度を調整するパラメータ
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figure/dynamicgain.pdf}
+    \caption{動的微分ゲイン}
+    \label{fig:dynamicgain}
+\end{figure}
+また，図\ref{fig:dynamicgain}に角速度に基づく動的微分ゲインのグラフを示す．
+
+角速度 \(\omega\) は次式で計算される．
+\begin{equation}
+    \omega = k_\omega \cdot \frac{\text{person\_offset}}{\max(\text{person\_distance}, 1.0)} + k_d \cdot \dot{\text{offset}}
+\end{equation}
+
+これにより，目標の動きが急変した場合でも柔軟に追従できる動作が可能となる．
