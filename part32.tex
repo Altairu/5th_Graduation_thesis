@@ -568,6 +568,24 @@ self.target_right = (2 * V + omega * self.L) / (2 * self.r)
 self.target_left = (2 * V - omega * self.L) / (2 * self.r)
 \end{lstlisting}
 
+また，カメラからの座標変換も行っている．
+\begin{lstlisting}[language=Python, caption=座標変換]
+def position_callback(self, msg):
+    if len(msg.data) == 2:  
+        pixel_offset = msg.data[1]  # カメラ画像上の水平ズレ（ピクセル）
+        depth = msg.data[0]  # カメラから取得した深度値（ m ）
+        # 座標変換
+        x_camera = (pixel_offset * depth) / self.fx  # カメラ座標系のX
+        y_camera = depth  # カメラ座標系のY
+
+        # ロボット座標系への変換
+        x_robot = x_camera + self.camera_offset_x
+        y_robot = y_camera
+
+        # 更新
+        self.person_offset = x_robot  # ロボット座標系のX
+        self.person_distance = y_robot  # ロボット座標系のY
+\end{lstlisting}
 
 本ノードでは，各種追従アルゴリズムを動的に選択できるよう設計されており，追従性能の向上と滑らかな動作を実現している．
 また，逆運動学を用いることで，車輪ごとの速度制御信号を正確に生成する．

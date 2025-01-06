@@ -179,7 +179,6 @@ YOLOはリアルタイムで物体を検出するアルゴリズムであり，
 そのため他の物体検出モデル（例えばSSDやFaster R-CNN）と比較して，
 高速な推論速度と高い精度を両立している．このため，リアルタイム性が要求されるロボットシステムにおいて有用である．
 
-\subsubsection{人認識への応用}
 本研究では，YOLOv5を用いてデプスカメラD435iから得られたRGB画像内の人を認識する．
 YOLOv5は以下のステップで物体を検出する：
 \begin{enumerate}
@@ -211,7 +210,7 @@ YOLOv5は以下のステップで物体を検出する：
 RealSense D435iは，ステレオカメラ方式を基本とし，アクティブ赤外線方式を補助的に使用する．
 これにより，低照度環境やテクスチャの少ない物体に対しても安定した距離測定が可能となっている．
 
-\subsection{デプスデータからの人座標検出}
+\subsubsection{デプスデータからの人座標検出}
 
 \begin{figure}[h]
     \centering
@@ -220,60 +219,85 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
     \label{fig:coordinate_conversion}
 \end{figure}
 
-デプスカメラで取得したデータを用いて，画像上のピクセル座標を実空間の物理座標に変換することで，
-人の位置を検出する．図\ref{fig:coordinate_conversion}に示すように，ピクセル座標系における対象物の位置を，
-カメラ座標系に変換する手順を以下に述べる．
+デプスカメラで取得したデータを用いて，画像上のピクセル座標を実空間の物理座標に変換することで，人の位置を検出する．図\ref{fig:coordinate_conversion}に示すように，ピクセル座標系における対象物の位置を，カメラ座標系に変換する手順を以下に述べる．
 
-\subsubsection{ピクセル座標からカメラ座標への変換}
-デプスカメラのデプスマップは，画像として各ピクセルの深度情報（距離）を格納している．このデータを利用して，ピクセル座標$(u, v)$をカメラ座標$(X_c, Y_c, Z_c)$に変換する．変換には以下の式を使用する：
+デプスカメラのデプスマップは，各ピクセルに深度情報$L$（対象物までの斜距離）を格納している．この情報を用いて，画像座標系におけるピクセル座標$(u, v)$をカメラ座標系$(X_c, Y_c)$に変換する．なお，本実験では上下方向（$Z$軸）は考慮しない．
+
+変換には以下の式を使用する：
 \begin{equation}
-    X_c = \frac{(u - c_x) \cdot Z_c}{f_x}
+    X_c = \frac{(u - c_x) \cdot L}{f_x}
     \label{eq:xc}
 \end{equation}
 \begin{equation}
-    Y_c = \frac{(v - c_y) \cdot Z_c}{f_y}
+    Y_c \approx L
     \label{eq:yc}
 \end{equation}
-\begin{equation}
-    Z_c = D(u, v)
-    \label{eq:zc}
-\end{equation}
-ここで，
-\begin{itemize}
-    \item $u, v$：ピクセル座標系の位置 [pixel]
-    \item $c_x, c_y$：カメラの光学中心 [pixel]
-    \item $f_x, f_y$：カメラの焦点距離 [pixel]
-    \item $D(u, v)$：デプスマップから取得される深度値 [m]
-\end{itemize}
+ここで，$u$および$v$は画像座標系のピクセル位置，$c_x$はカメラの光学中心（水平方向の画面中心）のピクセル位置，$f_x$はカメラの焦点距離（ピクセル単位），$L$はデプスマップから取得される深度値（対象物までの斜距離）である．
 
-この変換により，画像上の対象物がカメラ座標系における3次元位置として表現される．
+次に，カメラ座標系における2次元位置$(X_c, Y_c)$をロボット座標系$(X_r, Y_r)$に変換する．この変換は，カメラとロボット間の座標系の相対的な位置関係を記述する回転行列$R$と平行移動ベクトル$T$を用いることで行われる．
 
-\subsubsection{カメラ座標からロボット座標への変換}
-次に，カメラ座標$(X_c, Y_c, Z_c)$をロボット座標$(X_r, Y_r, Z_r)$に変換する．カメラとロボットの座標系の関係は，以下のように平行移動と回転を適用して記述される：
+ロボット座標系への変換は，次の行列式で表される：
 \begin{equation}
     \begin{bmatrix}
-        X_r \\ Y_r \\ Z_r \\ 1
+        X_r \\ Y_r \\ 1
     \end{bmatrix}
     =
     \begin{bmatrix}
-        R & T \\
+        R & T \\ 
         0 & 1
     \end{bmatrix}
     \begin{bmatrix}
-        X_c \\ Y_c \\ Z_c \\ 1
+        X_c \\ Y_c \\ 1
     \end{bmatrix}
+    \label{eq:transform}
 \end{equation}
+
 ここで，
 \begin{itemize}
     \item $R$：カメラ座標系からロボット座標系への回転行列
     \item $T$：カメラ座標系からロボット座標系への平行移動ベクトル
 \end{itemize}
 
-これにより，ロボット座標系において対象物の位置が求められる．
+本実験では，カメラがロボットに平行に取り付けられているため，回転行列$R$は単位行列として扱う．
+また，カメラがロボットの旋回中心から$200\ \mathrm{mm}$（$0.2\ \mathrm{m}$）前方に取り付けられているため，
+平行移動ベクトル$T$は以下のように与えられる：
+\begin{equation}
+    T = \begin{bmatrix} 0.0 \\ 0.2 \end{bmatrix}
+\end{equation}
 
-本研究では，D435iのデプスマップを利用して人の位置を検出し，ロボットの進行方向を計算する．
-図\ref{fig:coordinate_conversion}に示すように，人の座標$(X_r, Y_r)$を基に追従アルゴリズムを適用し，
-目標の移動方向を決定する．
+実際に計算例を示す．以下のパラメータを仮定する：
+\begin{itemize}
+    \item デプスカメラの焦点距離：$f_x = 378.09$ [px]
+    \item デプスカメラの光学中心：$c_x = 319.39$ [px]
+    \item デプスマップからの深度値：$L = 2.5$ [m]
+    \item 対象物の水平ピクセル座標：$u = 400$ [px]
+    \item カメラ位置のオフセット：$T_x = 0.2$ [m]
+\end{itemize}
+
+まず，画像座標系でのズレ$\Delta u$を計算する：
+\begin{equation}
+    \Delta u = u - c_x = 400 - 319.39 = 80.61 \, \text{[px]}
+\end{equation}
+
+次に，カメラ座標系での水平座標$X_c$を求める：
+\begin{equation}
+    X_c = \frac{\Delta u \cdot L}{f_x} = \frac{80.61 \cdot 2.5}{378.09} \approx 0.534 \, \text{[m]}
+\end{equation}
+
+奥行き$Y_c$を近似的に求める：
+\begin{equation}
+    Y_c \approx L = 2.5 \, \text{[m]}
+\end{equation}
+
+最後に，ロボット座標系での位置$(X_r, Y_r)$を計算する：
+\begin{equation}
+    X_r = X_c + T_x = 0.534 +0 = 0.534 \, \text{[m]}
+\end{equation}
+\begin{equation}
+    Y_r = Y_c + T_y = 2.5 + 0.2 = 4.5 \, \text{[m]}
+\end{equation}
+
+この計算により，目標物のロボット座標系における位置が得られる．
 
 \subsection{人追従アルゴリズム}
 
@@ -342,4 +366,3 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
     \omega = k_\omega \cdot \frac{\text{person\_offset}}{\max(\text{person\_distance}, 1.0)} + k_d \cdot \dot{\text{offset}}
 \end{equation}
 
-これにより，目標の動きが急変した場合でも柔軟に追従できる動作が可能となる．
