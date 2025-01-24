@@ -87,8 +87,6 @@ ROS 2ではWindowsやmacOSなど複数のプラットフォームで動作する
 \end{equation}
 ここで，$\Delta t$は計算ステップの時間間隔を示す．
 
-順運動学を用いることで，各車輪の角速度を基にロボットの現在位置と進行方向をリアルタイムで更新することが可能である．
-
 \subsubsection{逆運動学}
 逆運動学では，ロボットの並進速度$v$と角速度$\omega$から，
 車輪の角速度$\dot{\theta}_R$および$\dot{\theta}_L$を求める．
@@ -116,8 +114,7 @@ ROS 2ではWindowsやmacOSなど複数のプラットフォームで動作する
 \end{equation}
 
 これらの式により，目標速度$v$と$\omega$が与えられた場合に，
-車輪の角速度$\dot{\theta}_R$と$\dot{\theta}_L$を算出し，
-モータードライバを介して制御することでロボットの移動を実現できる．
+車輪の角速度$\dot{\theta}_R$と$\dot{\theta}_L$を算出し，ロボットの各車輪を制御できる．
 
 \subsection{PID制御とローパスフィルタ}
 PID制御（Proportional-Integral-Derivative Control）は，
@@ -138,7 +135,7 @@ PID制御は，目標値と現在値の偏差を基に制御量を算出し，�
     \item $K_I$：積分ゲイン（I制御）
     \item $K_D$：微分ゲイン（D制御）
 \end{itemize}
-各項の役割は以下の通りである：
+各項の役割は以下の通りである．
 \begin{itemize}
     \item 比例制御（P制御）：偏差に比例した制御量を生成し，応答の速さを向上させる．
     \item 積分制御（I制御）：偏差を累積することで，定常偏差を排除する．
@@ -166,10 +163,10 @@ PID制御は，目標値と現在値の偏差を基に制御量を算出し，�
 \end{equation}
 ここで，
 \begin{itemize}
-    \item $T$：ローパスフィルタの時定数
+    \item $T$：カットオフ周波数
 \end{itemize}
 
-フィルタを導入することで，高周波ノイズが減衰され，システムの安定性が向上する．
+ノイズが，微分により増幅されるが，１次遅れ系であるローパスフィルターにより，ノイズの影響が軽減される．
 
 \subsection{YOLOv5による物体認識}
 本研究では，人の認識にYOLOv5（You Only Look Once Version 5）を使用する．
@@ -180,7 +177,7 @@ YOLOはリアルタイムで物体を検出するアルゴリズムであり，
 高速な推論速度と高い精度を両立している．このため，リアルタイム性が要求されるロボットシステムにおいて有用である．
 
 本研究では，YOLOv5を用いてデプスカメラD435iから得られたRGB画像内の人を認識する．
-YOLOv5は以下のステップで物体を検出する：
+YOLOv5は以下のステップで物体を検出する．
 \begin{enumerate}
     \item RGB画像を入力し，YOLOv5のバックボーンにより特徴を抽出する．
     \item ネックでスケールを調整し，特徴を統合する．
@@ -191,27 +188,11 @@ YOLOv5は以下のステップで物体を検出する：
 これをデプスカメラのデプスマップと組み合わせることで，物理座標を算出する．
 
 
-\subsection{デプスカメラと距離測定の方法}
+\subsection{デプスデータからの人座標検出}
 デプスカメラは，対象物までの距離を計測するためのデバイスであり，ロボットの環境認識や障害物回避，
 物体追跡などの応用において重要な役割を果たす．
 本研究では，インテル® RealSense™ デプスカメラ D435iを使用し，
 カメラから取得したデプスデータを基に人追従アルゴリズムを実現する．
-本節では，デプスカメラの仕組みおよびD435iの特徴について説明する．
-
-\subsubsection{デプスカメラの仕組み}
-デプスカメラは，主に以下の3つの方式で距離を測定する：
-\begin{itemize}
-    \item ステレオカメラ方式：2つのカメラで撮影した画像から視差（パララックス）を計算し，
-          物体までの距離を推定する．
-    \item アクティブ赤外線方式：赤外線を投射し，反射光のパターンを解析することで深度情報を取得する．
-    \item Time-of-Flight（ToF）方式：光の飛行時間を測定し，物体までの距離を直接計算する．
-\end{itemize}
-
-RealSense D435iは，ステレオカメラ方式を基本とし，アクティブ赤外線方式を補助的に使用する．
-これにより，低照度環境やテクスチャの少ない物体に対しても安定した距離測定が可能となっている．
-
-\subsubsection{デプスデータからの人座標検出}
-
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.4\textwidth]{figure/rialsens_man.pdf}
@@ -223,7 +204,7 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
 
 デプスカメラのデプスマップは，各ピクセルに深度情報$L$（対象物までの斜距離）を格納している．この情報を用いて，画像座標系におけるピクセル座標$(u, v)$をカメラ座標系$(X_c, Y_c)$に変換する．なお，本実験では上下方向（$Z$軸）は考慮しない．
 
-変換には以下の式を使用する：
+変換には以下の式を使用する．
 \begin{equation}
     X_c = \frac{(u - c_x) \cdot L}{f_x}
     \label{eq:xc}
@@ -236,7 +217,7 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
 
 次に，カメラ座標系における2次元位置$(X_c, Y_c)$をロボット座標系$(X_r, Y_r)$に変換する．この変換は，カメラとロボット間の座標系の相対的な位置関係を記述する回転行列$R$と平行移動ベクトル$T$を用いることで行われる．
 
-ロボット座標系への変換は，次の行列式で表される：
+ロボット座標系への変換は，次の行列式で表される．
 \begin{equation}
     \begin{bmatrix}
         X_r \\ Y_r \\ 1
@@ -260,12 +241,12 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
 
 本実験では，カメラがロボットに平行に取り付けられているため，回転行列$R$は単位行列として扱う．
 また，カメラがロボットの旋回中心から$200\ \mathrm{mm}$（$0.2\ \mathrm{m}$）前方に取り付けられているため，
-平行移動ベクトル$T$は以下のように与えられる：
+平行移動ベクトル$T$は以下のように与えられる．
 \begin{equation}
     T = \begin{bmatrix} 0.0 \\ 0.2 \end{bmatrix}
 \end{equation}
 
-実際に計算例を示す．以下のパラメータを仮定する：
+実際に計算例を示す．以下のパラメータを仮定する．
 \begin{itemize}
     \item デプスカメラの焦点距離：$f_x = 378.09$ [px]
     \item デプスカメラの光学中心：$c_x = 319.39$ [px]
@@ -274,22 +255,22 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
     \item カメラ位置のオフセット：$T_x = 0.2$ [m]
 \end{itemize}
 
-まず，画像座標系でのズレ$\Delta u$を計算する：
+まず，画像座標系でのズレ$\Delta u$を計算する．
 \begin{equation}
     \Delta u = u - c_x = 400 - 319.39 = 80.61 \, \text{[px]}
 \end{equation}
 
-次に，カメラ座標系での水平座標$X_c$を求める：
+次に，カメラ座標系での水平座標$X_c$を求める．
 \begin{equation}
     X_c = \frac{\Delta u \cdot L}{f_x} = \frac{80.61 \cdot 2.5}{378.09} \approx 0.534 \, \text{[m]}
 \end{equation}
 
-奥行き$Y_c$を近似的に求める：
+奥行き$Y_c$を近似的に求める．
 \begin{equation}
     Y_c \approx L = 2.5 \, \text{[m]}
 \end{equation}
 
-最後に，ロボット座標系での位置$(X_r, Y_r)$を計算する：
+最後に，ロボット座標系での位置$(X_r, Y_r)$を計算する．
 \begin{equation}
     X_r = X_c + T_x = 0.534 +0 = 0.534 \, \text{[m]}
 \end{equation}
@@ -303,18 +284,22 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
 
 \subsubsection{比例航法 (Proportional Navigation, PN)}
 比例航法は，目標物（人物）の追従において，距離と偏差（横方向のズレ）を用いて
-制御信号を生成する基本的なアルゴリズムである．以下に，本実験で使用する比例航法の式を示す．
+制御信号を生成する基本的なアルゴリズムである．本来であれば，目標までの視線角度をもとに計算するが，簡易化のため，横方向のズレを使用する．
+以下に，本実験で使用する比例航法の式を示す．
 
 \begin{align}
-    V      & = k_v \cdot (\text{person\_distance} - 1.0)                                       \\
-    \omega & = k_\omega \cdot \frac{\text{person\_offset}}{\max(\text{person\_distance}, 1.0)}
+    V      & = k_v \cdot (P_d - 1.0)                     \\
+    \omega & = k_\omega \cdot \frac{P_o}{\max(P_d, 1.0)}
 \end{align}
 \begin{itemize}
     \item \(k_v\)：並進速度の比例ゲイン
     \item \(k_\omega\)：角速度の比例ゲイン
-    \item \(\text{person\_distance}\)：ロボットと目標間の距離
-    \item \(\text{person\_offset}\)：横方向の偏差
+    \item \(P_d\)：ロボットと目標間の距離
+    \item \(P_o\)：横方向の偏差
 \end{itemize}
+
+しかしながら，比例航法では対象までの距離が近づくにつれ横方向の偏差の変化が大きくなりロボットが振動的になると考えられる．
+そこで次の修正比例航法を提案する．
 
 \subsubsection{修正比例航法 (Modified Proportional Navigation, MPN)}
 比例方法では，大きな変化に対して大きな出力となり，ロボットの動きが激しくなってしまう．
@@ -322,27 +307,23 @@ RealSense D435iは，ステレオカメラ方式を基本とし，アクティ�
 ロボットの動作をより滑らかにする．
 偏差角速度は以下の式で計算される．
 \begin{equation}
-    \dot{\text{offset}} = \frac{\text{person\_offset} - \text{previous\_offset}}{\Delta t}
+    \dot{e}(k) = \frac{P_o(k) - P_o(k-1.0)}{\Delta t}
 \end{equation}
-
 角速度 \(\omega\) は以下の式で修正される．
 \begin{equation}
-    \omega = k_\omega \cdot \frac{\text{person\_offset}}{\max(\text{person\_distance}, 1.0)} + \lambda \cdot \dot{\text{offset}}
+    \omega(k) = k_\omega \cdot \frac{P_o(k)}{\max(P_d(k), 1.0)} + \lambda \cdot \dot{e}(k)
 \end{equation}
 ここで，
 \begin{itemize}
     \item \(\lambda\)：偏差角速度に対するゲイン
     \item \(\Delta t\)：制御周期
-    \item \(\text{previous\_offset}\)：前回の偏差値
 \end{itemize}
 
 これにより，急激な方向転換や不安定な動作が軽減され，滑らかな動作が可能となる．
-しかしながら，追従性能がやや劣る．
 
 \subsubsection{ゲインスケジューリング修正比例航法
     (Gain-Scheduled Modified Proportional Navigation, GS-MPN)}
-ゲインスケジューリング修正比例航法では，偏差角速度に基づき動的なゲインスケジューリングを導入することで，
-柔軟な制御を実現する．
+ゲインスケジューリング修正比例航法では，偏差角速度に基づき動的なゲインスケジューリングを導入する．
 
 動的微分ゲイン \(k_d\) は以下の式で定義される．
 \begin{equation}

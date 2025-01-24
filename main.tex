@@ -30,29 +30,31 @@
 
 
 \usepackage{listings,jvlisting} 
-\usepackage{xcolor} % 必要なら色をつけるため
+\usepackage{xcolor} 
 \usepackage{caption}
 %\captionsetup[lstlisting]{labelfont=bf, font=footnotesize, format=plain, singlelinecheck=false}
 
 \lstset{
-    basicstyle=\ttfamily\scriptsize,      % フォントサイズとスタイル
-    keywordstyle=\color{blue},            % キーワードの色
-    commentstyle=\color{green},           % コメントの色
-    stringstyle=\color{red},              % 文字列の色
-    numbers=left,                         % 行番号を左側に表示
-    stepnumber=1,                         % 行番号の間隔
-    numbersep=10pt,                       % 行番号とコードの間隔
-    frame=tb,                             % 上下に枠を表示
-    captionpos=b,                         % キャプションの位置を下
-    breaklines=true,                      % 長い行を折り返す
-    breakatwhitespace=false,              % 空白で改行しない
-    showspaces=false,                     % スペースを表示しない
-    showstringspaces=false,               % 文字列中のスペースを表示しない
-    tabsize=4,                            % タブ幅
-    extendedchars=true,                   % 拡張文字セットを有効化（日本語対応）
-    inputencoding=utf8,                   % 入力文字エンコーディングをUTF-8に設定
-    backgroundcolor={\color[gray]{.95}},  %背景の色設定    
+    basicstyle=\ttfamily\scriptsize,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    columns=fullflexible,    % ← extendedchars の代わり
+    numbers=left,
+    stepnumber=1,
+    numbersep=10pt,
+    frame=tb,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    showspaces=false,
+    showstringspaces=false,
+    tabsize=4,
+    extendedchars=true,      
+    inputencoding=utf8,       
+    backgroundcolor={\color[gray]{.95}},
 }
+
 
 
 
@@ -66,9 +68,9 @@
 \def\year{5}	% 令和 1 年度の場合
 
 % === 提出年月日を記入 ============================================================
-\def\submityear{2}	% 令和 2 年
-\def\submitmonth{2}	% 2 月
-\def\submitdate{4}	% 4 日
+\def\submityear{6}	% 令和 2 年
+\def\submitmonth{1}	% 2 月
+\def\submitdate{24}	% 4 日
 
 % === 題目を記入 ============================================================
 \def\title{%
@@ -90,7 +92,7 @@
 \def\name{野口 史遠}
 
 % === 指導教員を記入 ========================================================
-\def\supervisor{{高木 太郎 教授}}
+\def\supervisor{{高木 太郎 准教授}}
 
 % === 表紙 ========================================================
 \thispagestyle{empty}

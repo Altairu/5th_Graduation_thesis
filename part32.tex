@@ -9,7 +9,7 @@
 \subsubsection{下位レイヤー}
 本システムの下位レイヤーソフトウェアでは，モーター制御，エンコーダーのデータ処理，
 およびシリアル通信を実現するために自作ライブラリを使用している．
-開発環境はCubeIED(ver.1.16.1)である．
+開発環境はCubeIDE(ver.1.16.1)である．
 以下に，各ライブラリの詳細について説明する．
 
 \paragraph{エンコーダーライブラリ (encoder.c, encoder.h)}\mbox{}\\
@@ -560,13 +560,6 @@ omega = (
 self.previous_offset = self.person_offset  # 偏差を更新
 \end{lstlisting}
 
-
-
-計算された直進速度$V$と角速度$\omega$から，逆運動学を用いて右車輪および左車輪の速度を以下のように計算する．
-\begin{lstlisting}[language=Python, caption=逆運動学を用いた車輪速度の計算]
-self.target_right = (2 * V + omega * self.L) / (2 * self.r)
-self.target_left = (2 * V - omega * self.L) / (2 * self.r)
-\end{lstlisting}
 
 また，カメラからの座標変換も行っている．
 \begin{lstlisting}[language=Python, caption=座標変換]
