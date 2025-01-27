@@ -3,7 +3,7 @@
 % === ソフトウェア ==========================================================
 \subsection{ソフトウェア構成}
 本システムのソフトウェア構成について，以下に各要素を説明する．
-
+初めにマイコンで実行される下位レイヤーについて説明し，つぎにPCで実行される上位レイヤーについて説明する．
 
 % === 下位レイヤー ==========================================================
 \subsubsection{下位レイヤー}
@@ -16,57 +16,44 @@
 エンコーダーライブラリは，ロータリーエンコーダー（AMT102-V）の値を取得し，
 角速度や回転数を計算するための機能をもつ．
 このライブラリでは，エンコーダーから得られる値を高精度に利用するために4逓倍処理を行い，
-モーターの速度制御に使用している．以下に，一部ライブラリコードを示す．
-
+モーターの速度制御に使用している．Code 2に使用したエンコーダカウントのライブラリコードを示す．
 
 \lstset{language=C, caption={エンコーダーカウント値の取得}}
 
 \begin{lstlisting}
-    // エンコーダーカウント値の取得
-    int Encoder_Read(Encoder* encoder)
-    {
+// エンコーダーカウント値の取得
+int Encoder_Read(Encoder* encoder)
+{
         int16_t count = (int16_t)(__HAL_TIM_GET_COUNTER(encoder->htim) - TIMER_MAX_COUNT / 2);
         return count;
     }
-    
-    void Encoder_Interrupt(Encoder* encoder, EncoderData* encoder_data)
-    {
+
+void Encoder_Interrupt(Encoder* encoder, EncoderData* encoder_data)
+{
         int count = Encoder_Read(encoder);
-    
+
         encoder_data->count = count;
         encoder_data->rot = count / (double)encoder->ppr;
         encoder_data->deg = encoder_data->rot * 360.0;
         encoder_data->distance = encoder_data->rot * (PI * encoder->diameter);
-    
+
         encoder_data->rps = (encoder_data->rot - encoder->before_rot) / (encoder->period * 0.001);
         encoder_data->velocity = encoder_data->rps * PI * encoder->diameter;
-    
+
         encoder->before_rot = encoder_data->rot;
     }
 \end{lstlisting}
-
-また，このライブラリではカウント値のリセット機能も提供しており，
-特定の条件下でカウント値をゼロに戻すことが可能である．
 
 \paragraph{モータードライバライブラリ (motor\_driver.c, motor\_driver.h)}\mbox{}\\
 モータードライバライブラリは，DCモーターの速度と方向を制御するための機能をもつ．
 このライブラリでは，PWM信号を用いてモーターを駆動し，
 回転方向の切り替えや速度制御を行っていおる．
-以下に，一部ライブラリコードを示す．
+Code 3にモータドライバのライブラリコードを示す．
 
 \lstset{language=C, caption=モーターの速度設定 (motor\_driver.c)}
 
 \begin{lstlisting}
-// 初期化関数
-void MotorDriver_Init(MotorDriver* motor, TIM_HandleTypeDef* htimA, uint32_t channelA,TIM_HandleTypeDef* htimB, uint32_t channelB) {
-motor->htimA = htimA;
-motor->channelA = channelA;
-motor->htimB = htimB;
-motor->channelB = channelB;    
- // PWM 開始
-HAL_TIM_PWM_Start(htimA, channelA);
-HAL_TIM_PWM_Start(htimB, channelB);
-}
+
 // 速度設定関数
 void MotorDriver_setSpeed(MotorDriver *motor, int speed) {
     int pwm_value;
@@ -84,13 +71,25 @@ void MotorDriver_setSpeed(MotorDriver *motor, int speed) {
     }
 }
 \end{lstlisting}
-
+\newpage
 
 \paragraph{シリアル通信ライブラリ (serial\_lib.c, serial\_lib.h)}\mbox{}\\
 シリアル通信ライブラリは，PCや上位システムとのデータ通信を実現するために設計されている．
 このライブラリでは，固定長および可変長データの送受信をサポートしており，
-効率的かつ安全な通信を実現している．以下に，可変長データの送信および受信関数を示す．
+効率的かつ安全な通信を実現している．Code 4に可変長データの送信および受信関数を示す．
 
+この関数では，データを指定された形式に従ってパケット化し，
+シリアル通信で送信する．
+先頭にヘッダー（`SERIAL\_HEADER1` と `SERIAL\_HEADER2`）を追加し，
+データ部分は16ビット整数をビッグエンディアン形式で格納する．
+また，送信後に動的に確保したメモリを解放することで，メモリリークを防止している．
+
+受信関数では，指定された形式に従って受信したデータをデコードし，
+データバッファに格納する．受信データのヘッダーを検証し，
+データが正しい形式であることを確認した後，各データを16ビット整数として復元する．
+受信データが無効の場合，エラーコードを返すことで通信エラーを適切にハンドリングする．
+
+\newpage
 \lstset{language=C, caption=可変長データの送受信関数 (serial\_lib.c)}
 
 \begin{lstlisting}
@@ -128,18 +127,7 @@ uint8_t Serial_ReceiveData(UART_HandleTypeDef *huart, int16_t *data, uint8_t dat
     return 0; // エラー
 }
 \end{lstlisting}
-
-この関数では，データを指定された形式に従ってパケット化し，
-シリアル通信で送信する．
-先頭にヘッダー（`SERIAL\_HEADER1` と `SERIAL\_HEADER2`）を追加し，
-データ部分は16ビット整数をビッグエンディアン形式で格納する．
-また，送信後に動的に確保したメモリを解放することで，メモリリークを防止している．
-
-受信関数では，指定された形式に従って受信したデータをデコードし，
-データバッファに格納する．受信データのヘッダーを検証し，
-データが正しい形式であることを確認した後，各データを16ビット整数として復元する．
-受信データが無効の場合，エラーコードを返すことで通信エラーを適切にハンドリングする．
-
+\newpage
 
 \paragraph{メインコード (main.c)}\mbox{}\\
 メインコードでは，自作のエンコーダー，モータードライバ，シリアル通信ライブラリを統合し，
@@ -153,7 +141,7 @@ PCからの制御信号を受信する．受信した制御信号は右車輪お
 これらの速度データは，モータードライバライブラリの`MotorDriver\_setSpeed`関数を用いて
 設定される．
 
-次に，エンコーダーデータの送信を行う．10msごとにタイマーの値を確認し，
+つぎに，エンコーダーデータの送信を行う．10msごとにタイマーの値を確認し，
 タイミングが来た場合にエンコーダーライブラリの`Encoder\_Interrupt`関数を使用して
 速度データを更新する．更新された速度データは，
 シリアル通信ライブラリの`Serial\_SendData`関数を用いてPCに送信される．
@@ -162,7 +150,7 @@ PCからの制御信号を受信する．受信した制御信号は右車輪お
 およびエンコーダーデータの送信を連携させ，ロボット全体のリアルタイム制御を実現している．
 
 
-以下に，一部実装コードを示す．
+Code 5に一部実装コードを示す．
 
 \lstset{language=C, caption=メイン制御ループ (main.c)}
 \begin{lstlisting}
@@ -195,10 +183,32 @@ while (1)
     }
 }
 \end{lstlisting}
-
+\newpage
 
 % === 上位レイヤー ==========================================================
 \subsubsection{上位レイヤー}
+
+ロボット技術は産業用から日常生活まで多岐にわたる応用が進んでおり，
+それに伴い，開発の効率化やシステムの拡張性が求められている．
+これらの課題に対応するため，オープンソースのロボットフレームワークである
+ROS（Robot Operating System）が開発され，幅広い支持を得ている．
+ROSは，通信，制御，センサーデータの統合など，ロボット開発における基盤となる機能を提供しており，
+研究開発において重要な役割を果たしている．
+
+ROS 2はDDS（Data Distribution Service）を通信基盤として採用している．
+これにより，ノード間通信のリアルタイム性が向上し，
+複数のロボットやセンサーから成る分散システムの構築が容易となった\cite{ros2design}．
+特に，産業用ロボットや自動運転車のように，即時性が求められるシステムにおいて，その利点が顕著である．
+さらに，クロスプラットフォーム対応もROS 2の特徴の一つである．
+ROS 1は主にLinux環境での動作を前提としていたが，
+ROS 2ではWindowsやmacOSなど複数のプラットフォームで動作するよう設計されており，
+開発環境の柔軟性が大幅に向上した\cite{ros2docs}．
+これにより，多様なハードウェア環境への適応が可能となり，利用者の裾野が広がった．
+
+これらの特徴により，ROS 2は，
+研究開発だけでなく商業用途にも適したフレームワークとして注目を集めている．
+本研究においても，ROS 2を採用することで，効率的かつ信頼性の高いロボットシステムの開発を目指す．
+
 本システムの上位レイヤーでは，以下のROS2ノードを利用してリアルタイムなデータ処理と通信を実現している．
 開発環境はROS2 humble ,Python 3.10.12 である．
 
@@ -220,7 +230,7 @@ while (1)
     \caption{rqtgraph}
     \label{fig:rqt}
 \end{figure}
-
+\newpage
 
 \paragraph{web\_socket\_node}\mbox{}\\
 web\_socket\_nodeは，FastAPIを使用してWebブラウザとROS2ノード間の双方向通信を行う．
@@ -242,7 +252,10 @@ WebSocketは、HTTPプロトコルを拡張した双方向通信のためのプ�
 \end{itemize}
 
 
-以下に，WebSocket通信の主要な実装部分を示す．
+Code 6にWebSocket通信の主要な実装部分を示す．
+この実装では，Webブラウザから送信された制御信号をROSトピック`web\_socket\_pub`にパブリッシュし，
+ROS2ノードで処理される．
+同時に，ROS2ノードがサブスクライブしたデータをWebブラウザに送信することでリアルタイム通信を実現している．
 
 \begin{lstlisting}[language=Python, caption=WebSocket通信の主要部分 (web\_socket\_node.py)]
 # FastAPI インスタンスの作成
@@ -271,11 +284,7 @@ async def websocket_endpoint(websocket: FastAPIWebSocket):
         print('WebSocket disconnected')
 \end{lstlisting}
 
-この実装では，Webブラウザから送信された制御信号をROSトピック`web\_socket\_pub`にパブリッシュし，
-ROS2ノードで処理される．
-同時に，ROS2ノードがサブスクライブしたデータをWebブラウザに送信することでリアルタイム通信を実現している．
-
-
+\newpage
 \paragraph{PID\_node}\mbox{}\\
 PID\_nodeは，ロボットのモーター制御信号を生成するためにPID制御アルゴリズムを実装したノードである．
 PID制御では，目標値と現在値の差（偏差）を基に比例（P），積分（I），微分（D）の3要素を組み合わせて制御信号を生成する．
@@ -294,8 +303,19 @@ PID制御では，目標値と現在値の差（偏差）を基に比例（P）�
           \end{itemize}
 \end{itemize}
 
-以下に，PID制御アルゴリズムの主要な実装部分を示す．
+Code 7にPID制御アルゴリズムの主要な実装部分を示す．
+このアルゴリズムでは，目標速度と現在速度の差を計算し，PID制御の各要素を基に制御信号を生成する．
+ローパスフィルタを導入することで，ノイズによる微分項の影響を抑制し，安定した制御信号を生成する．
+また，Code8に制御ループの主要部分を示す．
+この制御ループでは，以下の手順でモーター制御信号を生成する．
+\begin{enumerate}
+    \item 目標速度と現在速度の偏差を計算し，PID制御を実行．
+    \item 生成した制御信号をROSトピック\texttt{wheel\_controls}にパブリッシュ．
+    \item デバッグ用に制御信号の詳細をログ出力．
+\end{enumerate}
+これにより，ロボットの速度を目標値に追従させるためのリアルタイム制御が可能となる．
 
+\newpage
 \begin{lstlisting}[language=Python, caption=PID制御アルゴリズムの実装 (PID\_node.py)]
 class PIDController:
     def __init__(self, kp, ki, kd, tau=0.01):
@@ -320,11 +340,6 @@ class PIDController:
         return self.kp * error + self.ki * self.integral + self.kd * derivative
 \end{lstlisting}
 
-このアルゴリズムでは，目標速度と現在速度の差を計算し，PID制御の各要素を基に制御信号を生成する．
-ローパスフィルタを導入することで，ノイズによる微分項の影響を抑制し，安定した制御信号を生成する．
-
-次に，制御ループの主要部分を以下に示す．
-
 \begin{lstlisting}[language=Python, caption=制御ループ (PID\_node.py)]
 def control_loop(self):
     current_time = self.get_clock().now()
@@ -340,15 +355,7 @@ def control_loop(self):
     control_msg.data = [float(control_signal_right), float(control_signal_left)]
     self.pub.publish(control_msg)
 \end{lstlisting}
-
-この制御ループでは，以下の手順でモーター制御信号を生成する．
-\begin{enumerate}
-    \item 目標速度と現在速度の偏差を計算し，PID制御を実行．
-    \item 生成した制御信号をROSトピック\texttt{wheel\_controls}にパブリッシュ．
-    \item デバッグ用に制御信号の詳細をログ出力．
-\end{enumerate}
-
-これにより，ロボットの速度を目標値に追従させるためのリアルタイム制御が可能となる．
+\newpage
 
 
 \paragraph{RealSense\_node}\mbox{}\\
@@ -362,8 +369,15 @@ RealSense\_nodeは，Intel RealSense D435iカメラを使用して深度デー�
           \end{itemize}
 \end{itemize}
 
-以下に，主要な処理と実装部分を示す．
+Code 9 に主要な処理と実装部分を示す．
+ただし，距離データは，近づく場合はそのままの値を使用し，遠ざかる場合は移動平均フィルタを適用している．
+このフィルタリングは，測定誤差やノイズの影響を低減するためである．
+距離データのフィルタリングに使用したコードをCode 10に示す．
 
+以上のノードは，RealSenseカメラから取得した深度データとRGB画像をもとに，
+YOLOv5を用いたターゲット検出と距離推定を行い，リアルタイムでROSトピックに結果をパブリッシュする．
+
+\newpage
 \begin{lstlisting}[language=Python, caption=ターゲット検出と距離推定 (RealSense\_node.py)]
 # RealSense フレームの処理
 def process_frames(self):
@@ -405,9 +419,6 @@ def process_frames(self):
         self.get_logger().error(f"Error processing frames: {str(e)}")
 \end{lstlisting}
 
-距離データは，近づく場合はそのままの値を使用し，遠ざかる場合は移動平均フィルタを適用している．
-このフィルタリングは，測定誤差やノイズの影響を低減するためである．
-
 \begin{lstlisting}[language=Python, caption=距離データのフィルタリング (RealSense\_node.py)]
 def filter_distance(self, current_distance):
     if current_distance == 0.0:  # 無効値は無視
@@ -425,8 +436,8 @@ def filter_distance(self, current_distance):
         return sum(self.distance_history) / len(self.distance_history)
 \end{lstlisting}
 
-本ノードは，RealSenseカメラから取得した深度データとRGB画像をもとに，
-YOLOv5を用いたターゲット検出と距離推定を行い，リアルタイムでROSトピックに結果をパブリッシュする．
+\newpage
+
 
 \paragraph{serial\_read\_node}\mbox{}\\
 serial\_read\_nodeは，下位レイヤーから送信されるエンコーダーデータをシリアル通信を通じて受信し，
@@ -440,7 +451,9 @@ ROSトピックにパブリッシュする役割を持つ．
           \end{itemize}
 \end{itemize}
 
-以下に，主要なコード部分を示す．
+Code 12に主要なコード部分を示す．
+このノードでは，シリアルポートから受信したエンコーダーデータを解析し，
+右車輪と左車輪の速度データとしてトピック\texttt{wheel\_feedback}にパブリッシュする．
 
 \begin{lstlisting}[language=Python, caption=シリアルデータの受信とトピックへのパブリッシュ (serial\_read\_node.py)]
 class SerialReadNode(Node):
@@ -463,9 +476,6 @@ class SerialReadNode(Node):
             self.get_logger().error(f"Error reading serial data: {str(e)}")
 \end{lstlisting}
 
-このノードでは，シリアルポートから受信したエンコーダーデータを解析し，
-右車輪と左車輪の速度データとしてトピック\texttt{wheel\_feedback}にパブリッシュする．
-
 \paragraph{serial\_send\_node}\mbox{}\\
 serial\_send\_nodeは，上位レイヤーからのモーター制御信号を下位レイヤーに送信する役割を持つ．
 このノードは，ROSトピックから制御信号を受け取り，指定されたフォーマットで
@@ -478,7 +488,10 @@ serial\_send\_nodeは，上位レイヤーからのモーター制御信号を�
           \end{itemize}
 \end{itemize}
 
-以下に，主要なコード部分を示す．
+Code 13に主要なコード部分を示す．
+このノードでは，モーター制御信号をROSトピック\texttt{wheel\_controls}から受信し，
+指定されたフォーマットでパケット化してシリアル通信を通じて送信する．
+\newpage
 
 \begin{lstlisting}[language=Python, caption=制御信号の送信 (serial\_send\_node.py)]
 class SerialSendNode(Node):
@@ -503,10 +516,6 @@ class SerialSendNode(Node):
             self.get_logger().error(f"Error sending serial data: {str(e)}")
 \end{lstlisting}
 
-このノードでは，モーター制御信号をROSトピック\texttt{wheel\_controls}から受信し，
-指定されたフォーマットでパケット化してシリアル通信を通じて送信する．
-
-
 \paragraph{Roboware\_node}\mbox{}\\
 Roboware\_nodeは，ロボットの速度制御を実現するためのノードであり，
 比例航法 (PN)，修正比例航法 (MPN)，およびゲインスケジューリング下修正比例航法 (GS-MPN)
@@ -529,14 +538,14 @@ Roboware\_nodeは，ロボットの速度制御を実現するためのノード
 以下に，各アルゴリズムでの速度計算部分を示す．
 
 \subparagraph{PN (Proportional Navigation)}\mbox{}\\
-PNアルゴリズムでは，以下のように直進速度$V$と角速度$\omega$を計算する．
+PNアルゴリズムでは，Code 13に示すように直進速度$V$と角速度$\omega$を計算する．
 \begin{lstlisting}[language=Python, caption=PNの計算部分 (Roboware\_node\_np.py)]
 V = self.kp_v * (self.person_distance - 1.0)
 omega = (self.navigation_constant) * self.kp_omega * self.person_offset / max((self.person_distance), 1.0)
 \end{lstlisting}
 
 \subparagraph{MPN (Modified Proportional Navigation)}\mbox{}\\
-MPNでは，偏差角速度の微分を用いて動作をなめらかにするため，以下のように計算する．
+MPNでは，偏差角速度の微分を用いて動作をなめらかにするため，Code 14に示すように計算する．
 \begin{lstlisting}[language=Python, caption=MPNの計算部分 (Roboware\_node\_mpn.py)]
 offset_rate = (self.person_offset - self.previous_offset) / self.dt  # 偏差角速度
 V = self.kp_v * (self.person_distance - 1.0)
@@ -549,6 +558,13 @@ self.previous_offset = self.person_offset  # 偏差を更新
 
 \subparagraph{GS-MPN (Gain-Scheduled Modified Proportional Navigation)}\mbox{}\\
 GS-MPNでは，動的微分ゲインを導入し，偏差角速度に基づく調整を行う．
+Code 15にコードを示す．
+また，カメラからの座標変換も行っている．
+座標変換のコードをCode 16に示す．
+
+本ノードでは，各種追従アルゴリズムを動的に選択できるよう設計されており，追従性能の向上と滑らかな動作を実現している．
+また，逆運動学を用いることで，車輪ごとの速度制御信号を正確に生成する．
+
 \begin{lstlisting}[language=Python, caption=GS-MPNの計算部分 (Roboware\_node\_newmpn.py)]
 offset_rate = (self.person_offset - self.previous_offset) / self.dt  # 偏差角速度
 dynamic_kd = self.kd_lambda * (1 - math.exp(-self.a * abs(offset_rate))) / (1 + math.exp(-self.a * abs(offset_rate)))
@@ -560,8 +576,6 @@ omega = (
 self.previous_offset = self.person_offset  # 偏差を更新
 \end{lstlisting}
 
-
-また，カメラからの座標変換も行っている．
 \begin{lstlisting}[language=Python, caption=座標変換]
 def position_callback(self, msg):
     if len(msg.data) == 2:  
@@ -580,5 +594,4 @@ def position_callback(self, msg):
         self.person_distance = y_robot  # ロボット座標系のY
 \end{lstlisting}
 
-本ノードでは，各種追従アルゴリズムを動的に選択できるよう設計されており，追従性能の向上と滑らかな動作を実現している．
-また，逆運動学を用いることで，車輪ごとの速度制御信号を正確に生成する．
+
